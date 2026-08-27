@@ -12,8 +12,8 @@ import requests
 from urllib.parse import quote
 
 # ==================== CONFIG ====================
-TARGET_URL = "https://YOUR_INSTANCE.ctf.hacker101.com/"
-ENCODED_CT = "PASTE_THE_POST_VALUE_HERE"
+TARGET_URL = "https://176c6fb4291841b27c85c9e2f3074b6c.ctf.hacker101.com/"
+ENCODED_CT = "0d3LkNu!0xvTuDidJ8q7uN6nztiy1BzAw-5C7TOXGy3erd6P0neBrKwbbRioem3DifWppYf5wbEr5YQ9u-!sW9FEJ2BPKxxgNPHGLxyQM1ELjqeBYnAv-Q1fEtRDcNKtiEdEGzglhtSx3!20E6ald-RxQ!bp7FDdXmgFl4ujw3eOWHAqbncz9z5KNLNwUXikmmV9ARqb88Rhc3L7Tux5hg~~"
 
 DEBUG = False
 
@@ -35,7 +35,6 @@ def is_valid_padding(ciphertext: bytes) -> bool:
         r = requests.get(url, timeout=10)
         if DEBUG:
             print(f"  [debug] {r.status_code} | {r.text[:200].replace(chr(10), ' ')}")
-        # Only AES unpad failure is a negative oracle
         return "PaddingException" not in r.text
     except Exception as e:
         if DEBUG:
